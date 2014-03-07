@@ -1,11 +1,37 @@
 <html>
 <head>
-<title>CLJS Web Audio Test</title>
+<title>CLJS Web Audio Test - Sonifications</title>
 <script src="js/goog/base.js" type="text/javascript"></script>
 <script src="js/cljs-web-audio.js" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="../../../black.css"></link>
 </head>
-<body>
+<body style="padding: 128px">
 <script type="text/javascript">goog.require('cljs_web_audio.test');</script>
+<p>Various sonification tests</p>
+<p>
+Here are some sonification tests I've made with my Web Audio lib in Clojure.
+They're all simple mappings from timeseries to frequency, each timeseries
+on a separate channel (like a line chart).
+These work in Chrome, Firefox nightly and Safari.
+
+</p>
+    <p>Turn the volume down low first, these are <b>loud</b></p>
+    <p style="cursor: pointer" onclick="cljs_web_audio.test.play_world_flu();">World flu trends since 2006</p>
+    <p style="cursor: pointer" onclick="cljs_web_audio.test.play_au_flu();">AU flu trends since 2006</p>
+    <p style="cursor: pointer" onclick="cljs_web_audio.test.play_us_flu();">US flu trends since 2006</p>
+    <p style="cursor: pointer" onclick="cljs_web_audio.test.play_water();">
+        Water level and electrical conductivity of Willochra Creek at Partacoona
+         (Data Source: <a href="https://www.waterconnect.sa.gov.au/Systems/SiteInfo/SitePages/Home.aspx?site=A5090502&period=HRLY#Real-Time%20Data">WaterConnect</a>)</p>
+    <div style="font-size: 70%; float:right; text-align:right">
+
+    <p>Made with the Web Audio API in Clojurescript</p>
+    <p>Data Source: Google Flu Trends (http://www.google.org/flutrends)</p>
+    <div style="font-size: 50%; margin-top: 3em;">
+        &copy Matthew Chadwick 2014
+    </div>
+    </div>
+
+
 </body>
 </html>
 

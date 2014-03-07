@@ -1,13 +1,15 @@
 (defproject cljs-web-audio "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "A Clojurescipt interface to the Web Audio API"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies
   [
     [org.clojure/clojure "1.5.1"]
+    [org.clojure/data.csv "0.1.2"]
     [org.clojure/clojurescript "0.0-2030"]
     [org.clojure/core.async "0.1.256.0-1bf8cf-alpha"]
+    [incanter "1.5.4"]
   ]
   :plugins [[lein-cljsbuild "0.3.4"]]
   :source-paths ["./src/clj"]
@@ -28,6 +30,6 @@
        }
      }
     ]
-  :crossovers [cljs-web-audio.timing]
+  :crossovers [cljs-web-audio.timing cljs-web-audio.data]
   }
 )

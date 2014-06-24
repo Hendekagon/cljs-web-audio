@@ -2,6 +2,11 @@
 /lib
 /classes
 /checkouts
+/out
+/repl
+.DS_Store
+.nrepl-port
+*.iml
 pom.xml
 pom.xml.asc
 *.jar
@@ -13,3 +18,4 @@ pom.xml.asc
 .lein-failures
 .lein-plugins
 .lein-repl-history
+

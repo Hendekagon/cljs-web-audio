@@ -82,6 +82,7 @@
 )
 
 (defn exp-to-morse
+  "Return a Morse-coding of the given Clojure expression"
   ([x] (exp-to-morse 0 (concat x ["."])))
   ([level x]
     (cond

@@ -2,14 +2,19 @@
  "file":
  "/Users/onto/projects/cljs-web-audio/./public/js/cljs_web_audio/timing.js",
  "sources":["timing.cljs"],
- "lineCount":64,
+ "lineCount":67,
  "mappings":
- "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",
+ "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",
  "names":
- ["relative-to-absolute", "start", "duration", "timings",
-  "relative-to-absolute", "reduce", "+", "total-1", "reductions",
-  "cons", "map", "partial", "*", "morse", "morse-timing", "p__14649",
-  "vec__14650", "nth", "m", "c", "k", "assoc", "interleave", "d",
-  "name", "repeat", "string-to-morse", "s", "mapcat", "get",
-  "exp-to-morse", "x", "exp-to-morse", "concat", "level", "seq?",
-  "list?", "vector?", "associative?", "Symbol", "Keyword"]}
+ ["cljs-web-audio.timing/relative-to-absolute", "start", "duration",
+  "timings", "relative-to-absolute", "cljs.core/reduce", "cljs.core/+",
+  "total-1", "cljs.core/reductions", "cljs.core/cons", "cljs.core/map",
+  "cljs.core/partial", "cljs.core/*", "cljs-web-audio.timing/morse",
+  "cljs-web-audio.timing/morse-timing", "p__27754", "vec__27755",
+  "cljs.core/nth", "m", "c", "k", "cljs.core/assoc",
+  "cljs.core/interleave", "d", "cljs.core/name", "cljs.core/repeat",
+  "cljs-web-audio.timing/string-to-morse", "s", "cljs.core/mapcat",
+  "cljs.core/get", "cljs-web-audio.timing/exp-to-morse", "x",
+  "exp-to-morse", "cljs.core/concat", "level", "cljs.core/seq?",
+  "cljs.core/list?", "cljs.core/vector?", "cljs.core/associative?",
+  "cljs.core/Symbol", "cljs.core/Keyword"]}

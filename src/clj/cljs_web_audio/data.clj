@@ -20,6 +20,7 @@
 (defn gaussian ([u s x] (gaussian u s (/ 1 s) x)) ([u s s1 x] (* s1 (phi (* s1 (- x u))))))
 
 (defn sheperd
+"The Sheperd tone"
   ([] (sheperd 9))
   ([n]
    (map (P map vector)

@@ -1,6 +1,6 @@
 (ns cljs-web-audio.timing)
 
-; this will be where the scheduling functions can go
+; this will be where the timing functions will go
 
 (defn relative-to-absolute
   ([start duration timings] (relative-to-absolute start duration (/ duration (reduce + timings)) timings))
@@ -78,6 +78,7 @@
 )
 
 (defn exp-to-morse
+  "Return a Morse-coding of the given Clojure expression"
   ([x] (exp-to-morse 0 (concat x ["."])))
   ([level x]
     (cond

@@ -14,50 +14,10 @@
   )
 )
 
+"Some examples - good luck understanding any of this"
+
 (defn cfn [m ml] (fn [x] (max (/ (get m (int (Math/floor (* x ml)))) 3) 0)))
 
-(defn hear
-  ([context f] (hear context (audio/fn-source context 1024 f)
-                 (audio/convolver-fn context 1024
-                   (fn [x]
-                     (* (* 0.5 (- 1 x)) (* (Math/sin (* 0.5 (* x audio/pi2))) (Math/sin (* 4 (* x audio/pi2)))))
-                     )
-                   )
-                 f))
-  ([f] (hear (audio/context) f) )
-  ([context node c f]
-    (.log js/console node
-      ;(.getChannelData (.-buffer node) 0)
-
-      )
-    (set! (.-loop node) false)
-    (audio/connect! node c)
-    (audio/connect! c (.-destination context))
-    (audio/note-on! node)
-    (audio/note-on! (audio/connect! (audio/fn-source context node) c) 3)
-    (audio/note-on! (audio/connect! (audio/fn-source context node) c) 6)
-    (audio/note-on! (audio/connect! (audio/fn-source context node) c) 7)
-    )
-  )
-
-(defn test3
-  ([] (test3 (audio/context)))
-  ([context]
-    (test3 context (repeatedly 3 #(audio/oscillator context))
-      ;(.createGainNode context)
-      (.-destination context)
-      )
-    )
-  ([context oscs dest]
-
-    (doall (map (fn [o]
-                  (audio/connect! o dest) (audio/frequency! o (+ 440 (* 20 (rand)))) (audio/note-on! o)) oscs))
-    ;(doall (map (fn [x] (.log js/console (str x)) (update! oscs x)) (take 1000 (iterate u x))))
-    ;(.log js/console (str (.-numberOfInputs dest)))
-    ;(connect! dest (.-destination context))
-    oscs
-    )
-  )
 
 (defn test4
   ([] (test4 (audio/context)))
@@ -79,7 +39,7 @@
       (audio/note-on! o)
       ;(audio/log<!G (filter< (C not :shift) xy) )
       (audio/T! r (filter< :shift xy))
-      ;(audio/T! i (filter< :shift xy))
+      (audio/T! i (filter< (C not :shift) xy))
       (audio/GP<! (P audio/update-wavetable! o r i) xy)
       ;(.log js/console (str (.-numberOfInputs dest)))
       {:osc o :r r :i i :context context}
@@ -128,7 +88,7 @@
       ;(morse-convolution context "morse")
       (audio/convolver-fn context
         3000
-        (fn [x] (if (or (and (> x 0.1) (< x 0.11))  (and (> x 0.51) (< x 0.53)) ) (- 1.0 x) 0.0)) ; TODO environment for this
+        (fn [x] (if (or (and (> x 0.1) (< x 0.11))  (and (> x 0.51) (< x 0.513)) ) (- 1.0 x) 0.0)) ; TODO environment for this
         ;(fn [x] (* (rand) (Math/sin (* Math/PI x))))
         )
       (audio/gain context)
@@ -152,12 +112,6 @@
       )
     ))
 
-
-(defn test2 []
-  (hear
-    (fn [x] (* x (Math/sin (* 10 (* x audio/pi2)))))
-  )
-)
 
 (defn tanh
   ([x] (tanh x (Math/exp (* 2 x))) )
@@ -311,29 +265,12 @@
   ([x u s s1] (* s1 (phi (* s1 (- x u)))))
 )
 
-;(play! (theremin!))
-
 (defn sheperd
   ([]
-   (play! (audio/fvts (data/sheperd)))
+   ;(play! (audio/fvts (data/sheperd)))
+   (audio/chorus (data/sheperd))
   )
 )
-
-;(ot)
-;(hear (P * 10000 (P aclm 4)))
-;(audio/test)
-
-;(audio/G (fn [x] (.log js/console x) (inc x)) 0 100)
-
-;(test4)
-
-;(audio/log<!G (audio/mouse-position-channel!))
-
-;(play! (test17))
-
-;(audio/log<!G (audio/get<! "http://www.google.org/flutrends/au/data.txt"))
-
-;(play! (audio/redosc (timing/flu)))
 
 (defn play-us-flu [] (play! (audio/redfreqs (take 52 (rest (data/flu data/flu-us 161))) 32)))
 
@@ -346,6 +283,51 @@
     (audio/redfreqs
       (trans (map (fn [[x y]] [(* x 5000) (* 0.5 y)]) (data/water))) 32)))
 
+
+(defn inspect [x]
+  (cond
+    (.getElementById js/document "debug")
+    (set! (.-textContent (.getElementById js/document "debug")) (str x))
+  ) x)
+
+(defn to-rgb [x] (str "rgb(" (* 255 (:ax x)) "," (* 255 (:ay x)) "," (* 255 (:az x)) ")"))
+
+(defn rgb! [x]
+  (set! (.-backgroundColor (.-style (.-documentElement js/document)))
+        (to-rgb x))
+     x)
+
+(defn mm [x] (+ 500 (* 100
+  (.cos js/Math (* 16 x)))))
+
+(defn ddd [x] (mod (int (/ x 6)) 2))
+
+(defn red [] (rgb! {:ax 0 :ay 1 :az 0}))
+
+(defn play-iphone
+  ([]
+    (.log js/console "playing iphone " (to-rgb {:ax 0.8 :ay 0.1 :az 0.2}) (.-backgroundColor (.-style (.-documentElement js/document))))
+    (play-iphone
+      ;(audio/ws<! "ws://127.0.0.1:8080/")
+      (audio/device-motion-channel!)
+      ))
+  ([device-motion-channel]
+  (audio/play!
+    (audio/red<f!G
+      [
+        (map< (C (P + 500) (P * 200) ddd (P * 360) :agx) device-motion-channel)
+        (map< (C (P + 300) (P * 200) ddd (P * 360) :agy) device-motion-channel)
+        (map< (C (P + 100) (P * 200) ddd (P * 360) :agz) device-motion-channel)
+      ]
+     )
+     )))
+
+;(play-iphone)
+
+;(play-water)
+
+;(play! (theremin!))
+
 ;(play! (audio/redosc [[0.5 0.25 0.5 0.7]]))
 
 ;(.log js/console (count (:sounds (audio/redosc (timing/flu)))))
@@ -355,3 +337,5 @@
 ;(testmbs)
 
 ;(sheperd)
+
+;(audio/log<!G (audio/ws<! "ws://127.0.0.1:8080/"))

@@ -1,13 +1,15 @@
 (ns cljs-web-audio.core
   "
   A web-audio lib for Clojurescript,
-  aimed at sonification of data and code.
+  aimed at sonification of data and code, rather than music.
+
+  Very rough!!!
 
   Copyright © 2013 Matthew Chadwick
 
   Distributed under the Eclipse Public License, the same as Clojure.
 
-  Many thanks to the following people for their blogging:
+  Many thanks to the following people:
 
   http://0xfe.blogspot.com.au/2011/08/generating-tones-with-web-audio-api.html
   https://github.com/cwilso/SynthTemplate
@@ -17,9 +19,9 @@
   (:require
     [cljs-web-audio.timing :as t]
     [cljs.core.async :refer
-      [put! take! chan <! >! map<
+      [put! take! chan <! >! map< close! timeout
         mult pipe tap to-chan onto-chan
-      sliding-buffer]
+      sliding-buffer dropping-buffer]
     ]
     [cljs.core.async.impl.buffers :refer
       [ring-buffer]
@@ -85,6 +87,8 @@
 )
 
 (defn buffer-map!
+"Sets the given buffer with the given function, the function taking
+value from 0-1 representing the position in the buffer being set"
   ([f buffer] (buffer-map! f buffer (alength buffer)))
   ([f buffer length]
     (map (fn [i] (aset buffer i (f (/ i length)))) (range length)))
@@ -100,11 +104,8 @@
   ([coll array] (doall (map (partial aset array) (range (count coll)) coll) ) array)
 )
 
-(def set-wavetable!
-  (if is-webkit
-    (fn [osc wavetable] (.setPeriodicWave osc wavetable))
-    (fn [osc wavetable] (.setWaveTable osc wavetable))
-  )
+(defn set-wavetable!
+  ([osc wavetable] (.setPeriodicWave osc wavetable))
 )
 
 ;https://dvcs.w3.org/hg/audio/raw-file/tip/webaudio/specification.html#AudioContext-section
@@ -139,6 +140,7 @@
 )
 
 (defn oscillator
+"Returns an oscillator node"
   ([] (oscillator (context)))
   ([context] (.createOscillator context))
   ([context wavetable] (oscillator context (oscillator context) wavetable))
@@ -253,7 +255,8 @@
   [channel context param]
   (go
     (while true
-      (exp-to param (<! channel) (+ 0.01 (current-time context)))))
+      (<! (timeout 64))
+      (linear-to param (<! channel) (+ 0.064 (current-time context)))))
 )
 
 (defn fvt
@@ -316,6 +319,27 @@
   )
 )
 
+(defn coll-osc
+  "returns an oscillator whos frequency, volume & timing are controlled by the given channel"
+  ([coll] (coll-osc coll (context)))
+  ([coll context] (coll-osc coll context (gain context) (oscillator context)))
+  ([coll context gain oscillator]
+    (connect! gain (.-destination context))
+    (connect! oscillator gain)
+    {
+      :context context
+      :sounds
+       {
+         coll
+         {
+          :oscillator oscillator
+          :gain gain
+         }
+       }
+    }
+  )
+)
+
 (defn Yf<!G
 "combine a oscillations! map with an oscillator for the given channel"
   [m channel]
@@ -347,13 +371,26 @@
 )
 
 (defn osc+
-"combine a oscillationss! map with an oscillator for the given channel"
+"combine a oscillations! map with an oscillator for the given channel"
   [m1 coll dur]
   (merge-with concat m1
     (select-keys (oscillations! coll dur (:context m1)) [:sounds]))
 )
 
 (defn fill [x] (if (seq? x) (concat x (take (- 3 (count x)) [440 0.1 1])) (cons x [0.1 1])))
+
+(defn red<f!G
+  "returns oscillators taking values asynchronously from the given channels"
+  ([channel context]
+    (f<!G channel context)
+  )
+  ([channels]
+    (reduce
+      (fn [r channel] (merge-with concat r (select-keys (red<f!G channel (:context r)) [:sounds])))
+    {:context (context) :duration :forever}
+    channels)
+  )
+)
 
 (defn redfreqs
   ([coll duration context]
@@ -368,6 +405,7 @@
 )
 
 (defn redosc
+  "Return oscillators for the given collections"
   ([context coll]
    (redosc context coll
     (oscillator context (create-wavetable context (to-float32array coll)))
@@ -394,22 +432,30 @@
 )
 
 (defn play!
+  "Start playing the sounds in the sound map thing given
+  ...only handles oscillators atm
+  "
   ([{context :context sounds :sounds duration :duration}]
-    ;(.log js/console duration)
+    (.log js/console duration)
     (doall (map note-on! (map :oscillator sounds)))
     (cond (number? duration) (doall (map (fn [o] (note-off! o (inc duration))) (map :oscillator sounds))))
   )
 )
 
-(defn mouse-events-channel!
-  ([] (mouse-events-channel! (chan)))
-  ([mouse-events]
+(defn events-channel!
+  "Returns a channel of events of the given :type"
+  ([type] (events-channel! type (chan (dropping-buffer 64))))
+  ([type channel]
     (.addEventListener
       js/window
-      "mousemove"
-      (fn [e] (put! mouse-events e)))
-    mouse-events
+      (name type)
+      (fn [e] (put! channel e)))
+      channel
   )
+)
+
+(defn mouse-events-channel!
+  ([] (events-channel! :mousemove))
 )
 
 (defn mouse-position-channel!
@@ -424,6 +470,24 @@
     (- (.-height js/window.screen) (.-screenY js/window))))
 )
 
+(defn device-motion-channel!
+  ([]
+    (map<
+        (fn [e]
+          {
+            :ax (.-x (.-acceleration e))
+            :ay (.-y (.-acceleration e))
+            :az (.-z (.-acceleration e))
+            :agx (.-x (.-accelerationIncludingGravity e))
+            :agy (.-y (.-accelerationIncludingGravity e))
+            :agz (.-z (.-accelerationIncludingGravity e))
+            :rx (.-alpha (.-rotationRate e))
+            :ry (.-beta  (.-rotationRate e))
+            :rz (.-gamma (.-rotationRate e))
+            :dt (.-interval e)
+          }) (events-channel! :devicemotion)))
+)
+
 (defn o
   "returns a channel filling from an iterative process"
   ([f i] (o f (chan (sliding-buffer 16)) i 30))
@@ -435,18 +499,57 @@
   ([coll f channel]
     (G (fn [col]
      ; (.log js/console (str (first col)) (str (empty? coll)))
-       (put! channel (first col))) f coll 500)
+       (put! channel (first col))) f coll 30)
     channel
   )
 )
 
+(defn oo
+  ([playing]
+    (.log js/console "play:" (str playing))
+    (oo
+      playing
+      (:context playing)
+      (keys (:sounds playing))
+      (map :oscillator (vals (:sounds playing)))
+      (map :gain (vals (:sounds playing))))
+  )
+  ([playing context colls oscs gains]
+    (.log js/console "starting...")
+    (G (fn [colls]
+        (doall
+          (map
+            (fn [coll osc gain]
+              (.log js/console coll osc gain)
+              (fvt (.-frequency osc) (.-gain gain) context (first coll))
+            ) colls oscs gains))
+        ) (P map rest) colls 500)
+    playing
+  )
+
+)
+
 (defn fvts
+  "frequency volume times - control f,v,t from given collections independently"
   ([colls]
     (reduce
       (fn [r coll]
         (merge-with concat r
           (select-keys
           (pp<!G (o coll) (:context r)) [:sounds])))
+    {:context (context) :duration :forever}
+    colls)
+  )
+)
+
+(defn chorus
+  "Control the frequencies of a bunch of oscillators from the values of the given collections"
+  ([colls]
+  (.log js/console "making " (count colls))
+    (reduce
+      (fn [r coll]
+      (.log js/console " make one" )
+        (update-in r [:sounds] (P merge (:sounds (coll-osc coll (:context r))))))
     {:context (context) :duration :forever}
     colls)
   )
@@ -462,16 +565,19 @@
 )
 
 (defn aset01!
+  "Set the element of the given array at the position given by :x (a real from 0-1) to :y"
   ([array {x :x y :y}] (aset array (inc (int (* x (dec (alength array))))) y))
 )
 
 (defn asetall!
+  "Set all elements of the given array from the given collection"
   ([array coll]
    (doall (map-indexed (fn [i x] (aset array i x)) coll))
   )
 )
 
 (defn asetting!
+  "The process of setting the given array with values taken from the given channel"
   ([array channel]
     (go (while true (asetall! array (<! channel))))
   )
@@ -479,7 +585,6 @@
 
 (defn update-wavetable! [osc r i m]
   (set-wavetable! osc (create-wavetable (context osc) r i))
-          ;(.log js/console "ok " (:x m) (:y m))
 )
 
 (defn T!
@@ -500,17 +605,17 @@
   )
 )
 
-(defn get<!
-  ([url] (get<! (js/XMLHttpRequest.) url (chan)))
-  ([xhttp url channel]
-    (.open xhttp "GET" url true)
-    (put! channel "open...")
-    (set! (.-onreadystatechange xhttp)
-      (fn []
-        (put! channel "change")
-        (cond (= (.-readyState xhttp) 4)
-              (put! channel (.-responseXML xhttp)))))
-    (.send xhttp nil)
+(defn ws<!
+"returns a channel reading from a websocket"
+  ([url] (ws<! (js/WebSocket. url) url (chan (dropping-buffer 16))))
+  ([ws url channel]
+    (set! (.-onmessage ws)
+      (fn [message]
+        ;(.log js/console (js->clj (.-data message) :keywordize-keys true))
+        (put! channel (js->clj (.parse js/JSON (.-data message)) :keywordize-keys true))
+        ))
+    (set! (.-onopen ws) (fn [] (.send ws {:hello :hi})))
+    (set! (.-onclose ws) (fn [] (close! channel)))
     channel
   )
 )

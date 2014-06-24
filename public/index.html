@@ -9,7 +9,7 @@
 <script type="text/javascript">goog.require('cljs_web_audio.test');</script>
 <p>Various sonification tests</p>
 <p>
-Here are some sonification tests I've made with my Web Audio lib in Clojure.
+Here are some sonification tests I've made with my Webbb Audio lib in Clojure.
 They're all simple mappings from timeseries to frequency, each timeseries
 on a separate channel (like a line chart).
 These work in Chrome, Firefox nightly and Safari.
@@ -22,6 +22,8 @@ These work in Chrome, Firefox nightly and Safari.
     <p style="cursor: pointer" onclick="cljs_web_audio.test.play_water();">
         Water level and electrical conductivity of Willochra Creek at Partacoona
          (Data Source: <a href="https://www.waterconnect.sa.gov.au/Systems/SiteInfo/SitePages/Home.aspx?site=A5090502&period=HRLY#Real-Time%20Data">WaterConnect</a>)</p>
+     <p style="cursor: pointer" onclick="cljs_web_audio.test.play_iphone();">acceleration</p>
+    <div id="debug">.</div>
     <div style="font-size: 70%; float:right; text-align:right">
 
     <p>Made with the Web Audio API in Clojurescript</p>

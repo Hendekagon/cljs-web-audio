@@ -322,6 +322,22 @@
      )
      )))
 
+(defn ves
+  ([]
+    (iterate ves [[1 0 0] 3]))
+  ([[s c]]
+    (let
+      [x (inc (count (take-while (complement (partial == (first s))) (rest s))))]
+      [(cons (if (== x c) 0 x) s) (inc c)]))
+  )
+
+(defn play-ves []
+  (play!
+   (audio/redfreqs
+     [(map
+        (fn [x] (* x 100))
+        (first (last (take 600 (ves)))))] 60)))
+
 ;(play-iphone)
 
 ;(play-water)

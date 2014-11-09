@@ -2,17 +2,9 @@
 
 An extremely rough Clojurescript interface to the Web Audio API.
 
-The aim of this library is (was) to provide some nice abstractions for
-sonification of data, *not* for playing or generating music.
-
-I've pretty much given-up on this though, because I don't know enough about
-audio to do this right (esp WRT timing, I mean my use of core.async was probably a mistake for a start
-, then there's the issue of how to schedule sounds to play at the right times,
-which this code doesn't address at all)
-
-It could be useful for you to read anyway just to see how to use web-audio from Clojurescript
-
-Enough apologes
+The aim of this library is to provide some nice abstractions for
+sonification of data, not for playing or generating music.
+It is far from that.
 
 
 ## Usage
@@ -33,6 +25,6 @@ FIXME
 
 ## License
 
-Copyright © 2013 Matthew Chadwick
+Copyright © 2014 Matthew Chadwick
 
 Distributed under the Eclipse Public License, the same as Clojure.

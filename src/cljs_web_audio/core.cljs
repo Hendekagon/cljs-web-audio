@@ -35,8 +35,6 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
 )
 
-(def is-webkit (try js/webkitAudioContext (catch js/Error e false)))
-
 (def pi2 (* 2 Math/PI))
 
 (defn log<!G
@@ -44,14 +42,11 @@
 ([channel]
     (go
     (while true (.log js/console (<! channel))
-    )))
-)
+    ))))
 
-(def P partial)
-(def C comp)
 (defn -_ [f y] (fn [x] (f x y)))
 
-(def trans (P apply (P map vector)))
+(def trans (partial apply (partial map vector)))
 
 (defn G
   "Do the function f at regular intervals
@@ -66,7 +61,7 @@
       (fn [x] (G f (f x) n)) n x))
 )
 
-(def context- (if is-webkit (fn [] (js/webkitAudioContext.)) (fn [] (js/AudioContext.))))
+(def context- (fn [] (js/AudioContext.)))
 
 (defn context
   ([] (context-))
@@ -250,7 +245,11 @@ value from 0-1 representing the position in the buffer being set"
   ([coll start duration param]
     (values-over-time coll start duration param (range start (+ duration start) (/ duration (count coll)))))
   ([coll start duration param timings]
-    (map (fn [x t] (.setValueAtTime param x t)) coll timings)
+    (map (fn [[x1 x2] [t1 t2]]
+      (linear-to param x1 t1)
+      (linear-to param x1 (+ t1 (* 0.98 (- t2 t1))))
+      (linear-to param x2 t2))
+         (partition 2 1 coll) (partition 2 1 timings))
   )
 )
 
@@ -259,9 +258,7 @@ value from 0-1 representing the position in the buffer being set"
   [channel context param]
   (go
     (while true
-      (<! (timeout 64))
-      (linear-to param (<! channel) (+ 0.064 (current-time context)))))
-)
+      (linear-to param (<! channel) (current-time context)))))
 
 (defn fvt
   ([params [times & values]]
@@ -340,16 +337,13 @@ value from 0-1 representing the position in the buffer being set"
           :gain gain
          }
        }
-    }
-  )
-)
+    }))
 
 (defn Yf<!G
 "combine a oscillations! map with an oscillator for the given channel"
   [m channel]
   (merge-with concat m
-    (select-keys (f<!G channel (:context m)) [:sounds]))
-)
+    (select-keys (f<!G channel (:context m)) [:sounds])))
 
 (defn oscillations!
 "Return a map representing the playing of some sounds
@@ -370,51 +364,41 @@ value from 0-1 representing the position in the buffer being set"
       :duration duration
       :context context
       :sounds [{:gain gain :oscillator osc}]
-    }
-  )
-)
+    }))
 
 (defn osc+
 "combine a oscillations! map with an oscillator for the given channel"
   [m1 coll dur]
   (merge-with concat m1
-    (select-keys (oscillations! coll dur (:context m1)) [:sounds]))
-)
+    (select-keys (oscillations! coll dur (:context m1)) [:sounds])))
 
 (defn fill [x] (if (seq? x) (concat x (take (- 3 (count x)) [440 0.1 1])) (cons x [0.1 1])))
 
 (defn red<f!G
   "returns oscillators taking values asynchronously from the given channels"
   ([channel context]
-    (f<!G channel context)
-  )
+    (f<!G channel context))
   ([channels]
     (reduce
       (fn [r channel] (merge-with concat r (select-keys (red<f!G channel (:context r)) [:sounds])))
     {:context (context) :duration :forever}
-    channels)
-  )
-)
+    channels)))
 
-(defn redfreqs
+(defn redosc!
   ([coll duration context]
-    (oscillations! (map fill coll) duration context)
-  )
+    (oscillations! (map fill coll) duration context))
   ([colls duration]
     (reduce
-      (fn [r coll] (merge-with concat r (select-keys (redfreqs coll duration (:context r)) [:sounds])))
+      (fn [r coll] (merge-with concat r (select-keys (redosc! coll duration (:context r)) [:sounds])))
     {:context (context) :duration duration}
-    colls)
-  )
-)
+    colls)))
 
 (defn redosc
   "Return oscillators for the given collections"
   ([context coll]
    (redosc context coll
     (oscillator context (create-wavetable context (to-float32array coll)))
-    (gain context))
-  )
+    (gain context)))
   ([context coll osc gain]
     (connect! osc gain)
     ;(frequency! osc (+ 400 (rand-int 200)))
@@ -422,8 +406,7 @@ value from 0-1 representing the position in the buffer being set"
     {
       :context context
       :sounds [{:gain gain :oscillator osc}]
-    }
-  )
+    })
   ([colls]
     (reduce
       (fn [r coll]
@@ -431,20 +414,18 @@ value from 0-1 representing the position in the buffer being set"
         (select-keys (redosc (:context r) (cons 0 coll)) [:sounds]))
       )
     {:context (context)}
-    colls)
-  )
-)
+    colls)))
 
 (defn play!
   "Start playing the sounds in the sound map thing given
   ...only handles oscillators atm
   "
   ([{context :context sounds :sounds duration :duration}]
-    (.log js/console duration)
+    ;(.log js/console duration)
     (doall (map note-on! (map :oscillator sounds)))
-    (cond (number? duration) (doall (map (fn [o] (note-off! o (inc duration))) (map :oscillator sounds))))
-  )
-)
+    (cond
+      (number? duration)
+        (doall (map (fn [o] (note-off! o (inc duration))) (map :oscillator sounds))))))
 
 (defn events-channel!
   "Returns a channel of events of the given :type"
@@ -454,13 +435,10 @@ value from 0-1 representing the position in the buffer being set"
       js/window
       (name type)
       (fn [e] (put! channel e)))
-      channel
-  )
-)
+      channel))
 
 (defn mouse-events-channel!
-  ([] (events-channel! :mousemove))
-)
+  ([] (events-channel! :mousemove)))
 
 (defn mouse-position-channel!
   ([] (mouse-position-channel! (mouse-events-channel!)))
@@ -471,8 +449,7 @@ value from 0-1 representing the position in the buffer being set"
        ) channel))
   ([channel] (mouse-position-channel! channel
     (- (.-width js/window.screen) (.-screenX js/window))
-    (- (.-height js/window.screen) (.-screenY js/window))))
-)
+    (- (.-height js/window.screen) (.-screenY js/window)))))
 
 (defn device-motion-channel!
   ([]
@@ -489,24 +466,19 @@ value from 0-1 representing the position in the buffer being set"
             :ry (.-beta  (.-rotationRate e))
             :rz (.-gamma (.-rotationRate e))
             :dt (.-interval e)
-          }) (events-channel! :devicemotion)))
-)
+          }) (events-channel! :devicemotion))))
 
 (defn o
   "returns a channel filling from an iterative process"
   ([f i] (o f (chan (sliding-buffer 16)) i 30))
   ([f c i n]
-    (G (fn [x] (put! c x)) f i n)
-    c
-  )
+    (G (fn [x] (put! c x)) f i n) c)
   ([coll] (o coll rest (chan (sliding-buffer 16))))
   ([coll f channel]
     (G (fn [col]
      ; (.log js/console (str (first col)) (str (empty? coll)))
-       (put! channel (first col))) f coll 30)
-    channel
-  )
-)
+       (put! channel (first col))) f coll 600)
+    channel))
 
 (defn oo
   ([playing]
@@ -516,8 +488,7 @@ value from 0-1 representing the position in the buffer being set"
       (:context playing)
       (keys (:sounds playing))
       (map :oscillator (vals (:sounds playing)))
-      (map :gain (vals (:sounds playing))))
-  )
+      (map :gain (vals (:sounds playing)))))
   ([playing context colls oscs gains]
     (.log js/console "starting...")
     (G (fn [colls]
@@ -525,11 +496,9 @@ value from 0-1 representing the position in the buffer being set"
           (map
             (fn [coll osc gain]
               (.log js/console coll osc gain)
-              (fvt (.-frequency osc) (.-gain gain) context (first coll))
-            ) colls oscs gains))
-        ) (P map rest) colls 500)
-    playing
-  )
+              (fvt (.-frequency osc) (.-gain gain) context (first coll)))
+              colls oscs gains))) (partial map rest) colls 500)
+    playing)
 
 )
 
@@ -542,9 +511,7 @@ value from 0-1 representing the position in the buffer being set"
           (select-keys
           (pp<!G (o coll) (:context r)) [:sounds])))
     {:context (context) :duration :forever}
-    colls)
-  )
-)
+    colls)))
 
 (defn chorus
   "Control the frequencies of a bunch of oscillators from the values of the given collections"
@@ -553,61 +520,47 @@ value from 0-1 representing the position in the buffer being set"
     (reduce
       (fn [r coll]
       (.log js/console " make one" )
-        (update-in r [:sounds] (P merge (:sounds (coll-osc coll (:context r))))))
+        (update-in r [:sounds] (partial merge (:sounds (coll-osc coll (:context r))))))
     {:context (context) :duration :forever}
-    colls)
-  )
-)
+    colls)))
 
 (defn pc
   "returns a partial function with first param controlled by a channel"
   ([f g c iv] (pc f g c (atom iv) iv))
   ([f g c va iv]
     (go (while true (reset! va (<! c))))
-    (fn [x] (f @va (g x)))
-  )
-)
+    (fn [x] (f @va (g x)))))
 
 (defn aset01!
   "Set the element of the given array at the position given by :x (a real from 0-1) to :y"
-  ([array {x :x y :y}] (aset array (inc (int (* x (dec (alength array))))) y))
-)
+  ([array {x :x y :y}] (aset array (inc (int (* x (dec (alength array))))) y)))
 
 (defn asetall!
   "Set all elements of the given array from the given collection"
   ([array coll]
-   (doall (map-indexed (fn [i x] (aset array i x)) coll))
-  )
-)
+   (doall (map-indexed (fn [i x] (aset array i x)) coll))))
 
 (defn asetting!
   "The process of setting the given array with values taken from the given channel"
   ([array channel]
-    (go (while true (asetall! array (<! channel))))
-  )
-)
+    (go (while true (asetall! array (<! channel))))))
 
 (defn update-wavetable! [osc r i m]
-  (set-wavetable! osc (create-wavetable (context osc) r i))
-)
+  (set-wavetable! osc (create-wavetable (context osc) r i)))
 
 (defn T!
   "mutates the given array from the given channel's messages which are {:x [0-1 postion] :y value}"
   ([array channel]
     (go
       (while true
-        (aset01! array (<! channel))))
-  )
-)
+        (aset01! array (<! channel))))))
 
 (defn GP<!
   ""
   ([f channel]
     (go
       (while true
-        (f (<! channel))))
-  )
-)
+        (f (<! channel))))))
 
 (defn ws<!
 "returns a channel reading from a websocket"

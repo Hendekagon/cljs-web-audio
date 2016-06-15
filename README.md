@@ -1,23 +1,20 @@
 # clj-web-audio
 
-An extremely rough Clojurescript interface to the Web Audio API.
+An extremely rough Clojurescript interface to the Web Audio API
 
 The aim of this library is to provide some nice abstractions for
-sonification of data, not for playing or generating music.
-It is far from that.
-
+sonification of data, not for playing or generating music
 
 ## Usage
 
-Use
+`use 'cljs-web-audio.repl`
+`(cljs-build)`
 
-$ lein cljbuild once
+Then visit ./public/index.html
 
-to compile, then call it from your webpage as in the examples given in ./public
+The examples code is in /examples/test.cljs
 
-or, use a repl - if you know Clojurescript you'll know what to do.
-
-It's so rough it's barely usable, but see tests.cljs, which are my experiments.
+It's a mess...this is a weekend project I hardly ever looked at
 
 (Examples here)[http://celeriac.net/sx/public/]
 

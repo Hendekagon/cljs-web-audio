@@ -18,10 +18,8 @@ It's a mess...this is a weekend project I hardly ever looked at
 
 (Examples here)[http://celeriac.net/sx/public/]
 
-FIXME
-
 ## License
 
-Copyright © 2014 Matthew Chadwick
+Copyright © 2016 Matthew Chadwick
 
 Distributed under the Eclipse Public License, the same as Clojure.

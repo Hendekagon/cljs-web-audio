@@ -30,12 +30,8 @@
     [cljs.core.async.impl.buffers :refer
       [ring-buffer]
     ]
-    [cljs.core.async :as w]
-  )
-  (:require-macros [cljs.core.async.macros :refer [go]])
-)
-
-(def pi2 (* 2 Math/PI))
+    [cljs.core.async :as w])
+  (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (defn log<!G
 "Returns a channel which logs messages it reads from"
@@ -43,10 +39,6 @@
     (go
     (while true (.log js/console (<! channel))
     ))))
-
-(defn -_ [f y] (fn [x] (f x y)))
-
-(def trans (partial apply (partial map vector)))
 
 (defn G
   "Do the function f at regular intervals
@@ -65,8 +57,7 @@
 
 (defn context
   ([] (context-))
-  ([node] (.-context node))
-)
+  ([node] (.-context node)))
 
 (defn sample-rate [context] (.-sample-rate context))
 
@@ -81,31 +72,25 @@
   ([context node f]
     (set! (.-onaudioprocess node)
       (fn [e] (f (aget (.getChannelData (.-outputBuffer e) ) 0) )))
-    node
-  )
-)
+    node))
 
 (defn buffer-map!
 "Sets the given buffer with the given function, the function taking
 value from 0-1 representing the position in the buffer being set"
   ([f buffer] (buffer-map! f buffer (alength buffer)))
   ([f buffer length]
-    (map (fn [i] (aset buffer i (f (/ i length)))) (range length)))
-)
+    (map (fn [i] (aset buffer i (f (/ i length)))) (range length))))
 
 (defn float32array
   ([size] (js/Float32Array. size))
-  ([size f] (buffer-map! (float32array size) f))
-)
+  ([size f] (buffer-map! (float32array size) f)))
 
 (defn to-float32array
   ([coll] (to-float32array coll (float32array (count coll))))
-  ([coll array] (doall (map (partial aset array) (range (count coll)) coll) ) array)
-)
+  ([coll array] (doall (map (partial aset array) (range (count coll)) coll) ) array))
 
 (defn set-wavetable!
-  ([osc wavetable] (.setPeriodicWave osc wavetable))
-)
+  ([osc wavetable] (.setPeriodicWave osc wavetable)))
 
 ;https://dvcs.w3.org/hg/audio/raw-file/tip/webaudio/specification.html#AudioContext-section
 ; SYNTAX_ERR: DOM Exception 12: An invalid or illegal string was specified.
@@ -113,48 +98,39 @@ value from 0-1 representing the position in the buffer being set"
 
 (defn create-buffer
   ([context f32] (create-buffer context f32 (.-buffer f32)))
-  ([context f32 buffer] (.createBuffer context buffer false))
-)
+  ([context f32 buffer] (.createBuffer context buffer false)))
 
 (defn to-buffer
   ([context coll] (.createBuffer context (to-float32array coll) false))
-  ([context size f] (create-buffer context (float32array size f)))
-)
+  ([context size f] (create-buffer context (float32array size f))))
 
 (defn create-wavetable
   ([context real] (create-wavetable context real (to-float32array (repeat (alength real) 0))))
   ([context real imag]
-    (.createPeriodicWave context real imag)
-  )
-)
+    (.createPeriodicWave context real imag)))
 
 (defn frequency!
   ([osc f] (frequency! osc f 0))
-  ([osc f t] (.setValueAtTime (.-frequency osc) f t) osc)
-)
+  ([osc f t] (.setValueAtTime (.-frequency osc) f t) osc))
 
 (defn exp-frequency!
   ([osc f] (frequency! osc f 0))
-  ([osc f t] (.exponentialRampToValueAtTime (.-frequency osc) f t) osc)
-)
+  ([osc f t] (.exponentialRampToValueAtTime (.-frequency osc) f t) osc))
 
 (defn oscillator
 "Returns an oscillator node"
   ([] (oscillator (context)))
   ([context] (.createOscillator context))
   ([context wavetable] (oscillator context (oscillator context) wavetable))
-  ([context oscillator wavetable] (set-wavetable! oscillator wavetable) oscillator)
-)
+  ([context oscillator wavetable] (set-wavetable! oscillator wavetable) oscillator))
 
 (defn create-buffer-source
   ([context coll] (create-buffer-source context coll (.createBufferSource context)))
-  ([context coll node] (set! (.-buffer node) (to-buffer context coll)) node)
-)
+  ([context coll node] (set! (.-buffer node) (to-buffer context coll)) node))
 
 (defn buffer-fn
   ([context size f] (buffer-fn context size (.createBuffer context 1 size (.-sampleRate context)) f))
-  ([context size buffer f] (buffer-map! f (.getChannelData buffer 0)) buffer)
-)
+  ([context size buffer f] (buffer-map! f (.getChannelData buffer 0)) buffer))
 
 (defn fn-source
   ([context size f]
@@ -167,49 +143,40 @@ value from 0-1 representing the position in the buffer being set"
     (fn-source context
       (.createBufferSource context)
       (.-buffer node)
-      identity
-      )
-    )
+      identity))
   ([context node buffer f]
     (set! (.-buffer node) buffer)
-    node
-    )
-  )
+    node))
 
 (defn note-on!
   ([o] (note-on! o 0))
-  ([o delay] (.start o delay) o)
-)
+  ([o delay] (.start o delay) o))
 
 (defn note-off!
   ([o] (note-off! o 0))
-  ([o delay] (.stop o delay) o)
-)
+  ([o delay] (.stop o delay) o))
 
 (defn gain! [node v] (set! (.-gain node) v) node)
 
-; huh ? naming ? sort this out - also, there's inconsistant use of ! everywhere!
+; huh ? why ?
 (defn gain
   ([context] (gain! (.createGain context) 1))
   ([context volumes times] (gain context (gain context) (current-time context) volumes times))
   ([context node volumes times] (gain context node  (current-time context) volumes times))
-  ([context gain t volumes times] (doall (map (fn [v dt] (.linearRampToValueAtTime (.-gain gain) v (+ t dt))) volumes times)) gain)
-)
+  ([context gain t volumes times] (doall (map (fn [v dt] (.linearRampToValueAtTime (.-gain gain) v (+ t dt))) volumes times)) gain))
 
 (defn connect! [source destination] (.connect source destination) source)
 
 (defn convolver
   ([context coll] (convolver context (.createConvolver context) coll))
   ([context convolver coll] (set! (.-buffer convolver) (to-buffer context coll)) convolver)
-  ([context] (.createConvolver context))
-)
+  ([context] (.createConvolver context)))
 
 (defn convolver-fn
   ([context millis f] (convolver-fn context millis (convolver context) f) )
-  ([context millis convolver f] (set! (.-buffer convolver) (buffer-fn context (millis-to-frames context millis) f)) convolver)
-)
+  ([context millis convolver f] (set! (.-buffer convolver) (buffer-fn context (millis-to-frames context millis) f)) convolver))
 
-(defn update-fn [f context] (fn [t] (f (.-currentTime context) (- (.-currentTime context) t)) )  )
+(defn update-fn [f context] (fn [t] (f (.-currentTime context) (- (.-currentTime context) t))))
 
 (defn frequencies-over-time!
   ([coll] (frequencies-over-time! coll 1))
@@ -225,17 +192,13 @@ value from 0-1 representing the position in the buffer being set"
     {
       :context context
       :oscillator osc
-    }
-  )
-)
+    }))
 
 (defn set-value-at-time [param x t]
-  (.setValueAtTime param x t)
-)
+  (.setValueAtTime param x t))
 
 (defn exp-to [param x t]
-  (.exponentialRampToValueAtTime param x t)
-)
+  (.exponentialRampToValueAtTime param x t))
 
 (defn linear-to [param x t] (.linearRampToValueAtTime param x t))
 
@@ -249,9 +212,7 @@ value from 0-1 representing the position in the buffer being set"
       (linear-to param x1 t1)
       (linear-to param x1 (+ t1 (* 0.98 (- t2 t1))))
       (linear-to param x2 t2))
-         (partition 2 1 coll) (partition 2 1 timings))
-  )
-)
+         (partition 2 1 coll) (partition 2 1 timings))))
 
 (defn p<!G
 "make the given channel control the given parameter"
@@ -266,25 +227,21 @@ value from 0-1 representing the position in the buffer being set"
   ([fp gp context [f v t]]
    ; (.log js/console f v t)
     (set-value-at-time fp f (+ t (current-time context)))
-    (set-value-at-time gp v (+ t (current-time context)))
-  )
-)
+    (set-value-at-time gp v (+ t (current-time context)))))
 
 (defn pm<!G
 "make the given channel control the given parameter"
   [channel params]
   (go
     (while true
-      (fvt params (<! channel))))
-)
+      (fvt params (<! channel)))))
 
 (defn pmm<!G
 "make the given channel control the given parameter"
   [channel context fp gp]
   (go
     (while true
-      (fvt fp gp context (<! channel))))
-)
+      (fvt fp gp context (<! channel)))))
 
 (defn f<!G
   "returns an oscillator whos frequency is controlled by the given channel"
@@ -296,9 +253,7 @@ value from 0-1 representing the position in the buffer being set"
       :context context
       :duration :forever
       :sounds [{:oscillator oscillator :channel (p<!G channel context (.-frequency oscillator))}]
-    }
-  )
-)
+    }))
 
 (defn pp<!G
   "returns an oscillator whos frequency, volume & timing are controlled by the given channel"
@@ -316,9 +271,7 @@ value from 0-1 representing the position in the buffer being set"
           :channel (pmm<!G channel context (.-frequency oscillator) (.-gain gain))
         }
       ]
-    }
-  )
-)
+    }))
 
 (defn coll-osc
   "returns an oscillator whos frequency, volume & timing are controlled by the given channel"
@@ -573,6 +526,4 @@ value from 0-1 representing the position in the buffer being set"
         ))
     (set! (.-onopen ws) (fn [] (.send ws {:hello :hi})))
     (set! (.-onclose ws) (fn [] (close! channel)))
-    channel
-  )
-)
+    channel))

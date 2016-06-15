@@ -1,8 +1,14 @@
-(ns cljs-web-audio.ear
+(ns cljs-web-audio.examples.ear
   (:require
-    [cljs-web-audio.genetics :as gen]
+    [cljs-web-audio.examples.genetics :as gen]
     [cljs-web-audio.maths :as maths  :refer [pow gaussian]]))
 
+(defn mandelbrot
+  ([p]
+   (ffirst
+     (drop-while
+       (fn [[r i x y]] (and (< i 100) (< r 4)))
+       (iterate (fn [[r i x y]] [(- (* x x) (* y y)) (* 2 x y) (+ (* x x) (* y y)) (inc i)]) (concat [0 0] p))))))
 
 (defn sheperd
 "The Sheperd tone"
@@ -18,9 +24,9 @@
     (map (comp cycle (partial take n)) (map repeat (repeat n 0.1))))))
 
 
-(defn aa-sci-pitch
+(defn aa-pitch
   ([]
-  (aa-sci-pitch (concat [:. :-] gen/amino-acid-symbols-vec)))
+  (aa-pitch (concat [:. :-] gen/amino-acid-symbols-vec)))
   ([k]
     (zipmap
      k
@@ -44,7 +50,7 @@
 
 (defn to-pitch [sequences]
   (map
-    (partial map (comp (aa-sci-pitch) keyword str))
+    (partial map (comp (aa-pitch) keyword str))
     (map :sequence sequences)))
 
 (def test-aa

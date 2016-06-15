@@ -41,7 +41,7 @@
     [[:stockholm & lines]]
       (reduce (fn [r [k v]] (assoc-in r k v)) {} (map sequences-from-stockholm lines))
     [[:line [:namedsequence [:name name] [:sequence sequence]]]]
-      [[:sequences name] {:name name :sequence sequence :type :real}]
+      [[:sequences name] {:name name :sequence sequence}]
     [[:line [:markupline & markups]]]
       (parse-markup-line (map last markups))
     :else nil)))

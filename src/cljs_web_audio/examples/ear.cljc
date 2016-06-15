@@ -1,7 +1,9 @@
 (ns cljs-web-audio.examples.ear
   (:require
-    [cljs-web-audio.examples.genetics :as gen]
     [cljs-web-audio.maths :as maths  :refer [pow gaussian]]))
+
+(def amino-acid-symbols-vec
+  '(\A \C \D \E \F \G \H \I \K \L \M \N \P \Q \R \S \T \V \W \Y))
 
 (defn mandelbrot
   ([p]
@@ -26,7 +28,7 @@
 
 (defn aa-pitch
   ([]
-  (aa-pitch (concat [:. :-] gen/amino-acid-symbols-vec)))
+  (aa-pitch (concat [\. \-] amino-acid-symbols-vec)))
   ([k]
     (zipmap
      k
@@ -50,12 +52,12 @@
 
 (defn to-pitch [sequences]
   (map
-    (partial map (comp (aa-pitch) keyword str))
+    (partial map (aa-pitch))
     (map :sequence sequences)))
 
 (def test-aa
   (concat
     (repeatedly 2
-       (fn [] {:sequence (map name gen/amino-acid-symbols-vec)}))
+       (fn [] {:sequence amino-acid-symbols-vec}))
     (repeatedly 2
-       (fn [] {:sequence (map name (reverse gen/amino-acid-symbols-vec))}))))
+       (fn [] {:sequence (reverse amino-acid-symbols-vec)}))))

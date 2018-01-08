@@ -47,7 +47,7 @@
     :else nil)))
 
 (defn get-pfam [id f]
-  (GET (str "http://cors.io/?u=http://pfam.xfam.org/family/" id "/alignment/seed")
+  (GET (str "https://crossorigin.me/http://pfam.xfam.org/family/" id "/alignment/seed")
        {:handler
                          (fn [r]
                            (f (sequences-from-stockholm

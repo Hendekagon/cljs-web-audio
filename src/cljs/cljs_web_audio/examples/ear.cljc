@@ -25,7 +25,6 @@
     (map (fn [x] (cycle (map (partial gaussian 0 1) (range x (+ x (/ 7 n)) (/ 1 n))))) (range -3 (+ 3 (/ 7 n)) (/ 7 n)))
     (map (comp cycle (partial take n)) (map repeat (repeat n 0.1))))))
 
-
 (defn aa-pitch
   ([]
   (aa-pitch (concat [\. \-] amino-acid-symbols-vec)))

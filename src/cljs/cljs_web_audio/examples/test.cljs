@@ -1,19 +1,13 @@
 (ns cljs-web-audio.examples.test
   (:require
     [clojure.string :as string]
-    [cljs-web-audio.core :as audio]
     [cljs-web-audio.timing :as timing]
     [cljs-web-audio.maths :as maths  :refer [pow trans F]]
     [cljs-web-audio.examples.data :as data]
     [cljs-web-audio.examples.ear :as ear]
     [cljs-web-audio.examples.msa :as msa]
-    [cljs-web-audio.core :refer
-      [pc o Yf<!G f<!G play! osc+ oscillations! redosc!]
-    ]
-    [cljs.core.async :refer
-      [put! take! chan <! >! map< filter<
-        mult pipe tap to-chan
-      sliding-buffer]]))
+    [cljs-web-audio.core :as audio :refer [pc o Yf<!G f<!G play! osc+ oscillations! redosc!]]
+    [cljs.core.async :refer [put! take! chan <! >! map< filter< mult pipe tap to-chan sliding-buffer]]))
 
 (enable-console-print!)
 
@@ -27,9 +21,7 @@
   ([context]
     (test4 context
       ;(.createGainNode context)
-      (.-destination context)
-      )
-    )
+      (.-destination context)))
   ([context dest]
     (let [
            r (audio/to-float32array (cons 0 (repeat 63 0.0)))
@@ -38,9 +30,10 @@
            o (audio/oscillator context wt)
            xy (audio/mouse-position-channel!)
           ]
+       (println context dest)
       (audio/connect! o dest)
       (audio/note-on! o)
-      ;(audio/log<!G (filter< (comp not :shift) xy) )
+      (audio/log<!G (filter< (comp not :shift) xy) )
       (audio/T! r (filter< :shift xy))
       (audio/T! i (filter< (comp not :shift) xy))
       (audio/GP<! (partial audio/update-wavetable! o r i) xy)
@@ -290,23 +283,6 @@
 
 (defn ddd [x] (mod (int (/ x 6)) 2))
 
-(defn play-iphone
-  ([]
-    (play-iphone
-      ;(audio/ws<! "ws://127.0.0.1:8080/")
-      (audio/device-motion-channel!)
-      ))
-  ([device-motion-channel]
-  (audio/play!
-    (audio/red<f!G
-      [
-        (map< (comp (partial + 500) (partial * 200) ddd (partial * 360) :agx) device-motion-channel)
-        (map< (comp (partial + 300) (partial * 200) ddd (partial * 360) :agy) device-motion-channel)
-        (map< (comp (partial + 100) (partial * 200) ddd (partial * 360) :agz) device-motion-channel)
-      ]
-     )
-     )))
-
 (defn ves
   ([]
     (iterate ves [[1 0 0] 3]))
@@ -323,19 +299,23 @@
         (fn [x] (* x 100))
         (first (last (take 600 (ves)))))] 60)))
 
-(audio/play!
-  (audio/redosc!
-    (ear/offset-pitches
-      (ear/to-pitch data/PF06899)) 60))
-
-
 (comment
-  (msa/get-pfam "PF06899"
-               (fn [{sequences :sequences :as s}]
-                 (audio/play!
-                   (audio/redosc!
-                     (ear/offset-pitches
-                       (ear/to-pitch (vals sequences))) 60)))))
+  (audio/play!
+   (audio/redosc!
+     (ear/offset-pitches
+       (ear/to-pitch data/PF06899)) 60)))
+
+
+(defn play-pfam!
+  ([id]
+    (play-pfam! id 60))
+  ([id duration]
+    (msa/get-pfam id
+     (fn [{sequences :sequences :as s}]
+       (audio/play!
+         (audio/redosc!
+           (ear/offset-pitches
+             (ear/to-pitch (vals sequences))) duration))))))
 
 ;(audio/play! (audio/redfreqs [(map (comp amino-acid-freqs keyword) data/titin)] 4096))
 

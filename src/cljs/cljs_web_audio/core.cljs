@@ -22,23 +22,16 @@
   "
   (:require
     [cljs-web-audio.timing :as t]
-    [cljs.core.async :refer
-      [put! take! chan <! >! map< close! timeout
-        mult pipe tap to-chan onto-chan
-      sliding-buffer dropping-buffer]
-    ]
-    [cljs.core.async.impl.buffers :refer
-      [ring-buffer]
-    ]
+    [cljs.core.async :refer [put! take! chan <! >! map< close! timeout mult pipe tap to-chan onto-chan sliding-buffer dropping-buffer]]
+    [cljs.core.async.impl.buffers :refer [ring-buffer]]
     [cljs.core.async :as w])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (defn log<!G
 "Returns a channel which logs messages it reads from"
 ([channel]
-    (go
-    (while true (.log js/console (<! channel))
-    ))))
+  (go
+    (while true (.log js/console (<! channel))))))
 
 (defn G
   "Do the function f at regular intervals
@@ -53,17 +46,28 @@
       (fn [x] (G f (f x) n)) n x))
 )
 
-(def context- (fn [] (js/AudioContext.)))
+(def is-webkit
+  (try js/webkitAudioContext
+    (catch js/Error e false)))
+
+(def context-
+  (fn []
+    (if is-webkit
+      (js/webkitAudioContext.)
+      (js/AudioContext.))))
 
 (defn context
   ([] (context-))
   ([node] (.-context node)))
 
-(defn sample-rate [context] (.-sample-rate context))
+(defn sample-rate [context]
+  (.-sample-rate context))
 
-(defn current-time [context] (.-currentTime context))
+(defn current-time [context]
+  (.-currentTime context))
 
-(defn millis-to-frames [context millis] (* (.-sampleRate context) (/ millis 1000)))
+(defn millis-to-frames [context millis]
+  (* (.-sampleRate context) (/ millis 1000)))
 
 (defn node
   ([context f] (node context 1024 1 1 f))
@@ -374,7 +378,7 @@ value from 0-1 representing the position in the buffer being set"
   ...only handles oscillators atm
   "
   ([{context :context sounds :sounds duration :duration}]
-    ;(.log js/console duration)
+  (println "play" context)
     (doall (map note-on! (map :oscillator sounds)))
     (cond
       (number? duration)
@@ -451,9 +455,7 @@ value from 0-1 representing the position in the buffer being set"
               (.log js/console coll osc gain)
               (fvt (.-frequency osc) (.-gain gain) context (first coll)))
               colls oscs gains))) (partial map rest) colls 500)
-    playing)
-
-)
+    playing))
 
 (defn fvts
   "frequency volume times - control f,v,t from given collections independently"

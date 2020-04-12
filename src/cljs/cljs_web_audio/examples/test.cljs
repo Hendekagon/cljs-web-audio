@@ -5,11 +5,8 @@
     [cljs-web-audio.maths :as maths  :refer [pow trans F]]
     [cljs-web-audio.examples.data :as data]
     [cljs-web-audio.examples.ear :as ear]
-    [cljs-web-audio.examples.msa :as msa]
     [cljs-web-audio.core :as audio :refer [pc o Yf<!G f<!G play! osc+ oscillations! redosc!]]
     [cljs.core.async :refer [put! take! chan <! >! map< filter< mult pipe tap to-chan sliding-buffer]]))
-
-(enable-console-print!)
 
 "Some examples - good luck understanding any of this"
 
@@ -305,17 +302,6 @@
      (ear/offset-pitches
        (ear/to-pitch data/PF06899)) 60)))
 
-
-(defn play-pfam!
-  ([id]
-    (play-pfam! id 60))
-  ([id duration]
-    (msa/get-pfam id
-     (fn [{sequences :sequences :as s}]
-       (audio/play!
-         (audio/redosc!
-           (ear/offset-pitches
-             (ear/to-pitch (vals sequences))) duration))))))
 
 ;(audio/play! (audio/redfreqs [(map (comp amino-acid-freqs keyword) data/titin)] 4096))
 

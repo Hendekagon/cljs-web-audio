@@ -21,17 +21,26 @@
   http://swannodette.github.io/2013/11/07/clojurescript-101/
   "
   (:require
+    [oops.core :refer [oget oget+ oset! ocall]]
     [cljs-web-audio.timing :as t]
-    [cljs.core.async :refer [put! take! chan <! >! map< close! timeout mult pipe tap to-chan onto-chan sliding-buffer dropping-buffer]]
+    [cljs-web-audio.ecg :refer [Component]]
+    [cljs.core.async :as as :refer [put! take! chan <! >! go go-loop close! timeout mult pipe
+                             tap to-chan onto-chan sliding-buffer dropping-buffer]]
     [cljs.core.async.impl.buffers :refer [ring-buffer]]
     [cljs.core.async :as w])
   (:require-macros [cljs.core.async.macros :refer [go]]))
+
+(defrecord DOMComponent [{parent :parent :spec [kind attrs children :as spec]}]
+ Component
+  (c+ [this parent c] (let [e (.createElement document (name kind))] (set! .-textContent e children) (.appendChild parant e) (assoc c :node e)))
+  (fn [this parent {node :node :as c}] (.removeChild parent node) (dissoc c :node))
+  (fn [this parent {[kind attrs children] :spec node :node :as c}] c))
 
 (defn log<!G
 "Returns a channel which logs messages it reads from"
 ([channel]
   (go
-    (while true (.log js/console (<! channel))))))
+    (while true (println (<! channel))))))
 
 (defn G
   "Do the function f at regular intervals
@@ -43,8 +52,7 @@
       (fn [x] (g x) (G g f (f x) n)) n x) )
   ([f x n]
     (. js/window setTimeout
-      (fn [x] (G f (f x) n)) n x))
-)
+      (fn [x] (G f (f x) n)) n x)))
 
 (def is-webkit
   (try js/webkitAudioContext
@@ -120,6 +128,14 @@ value from 0-1 representing the position in the buffer being set"
 (defn exp-frequency!
   ([osc f] (frequency! osc f 0))
   ([osc f t] (.exponentialRampToValueAtTime (.-frequency osc) f t) osc))
+
+(defn panner
+  ([context]
+    (panner context {}))
+  ([context properties]
+    (let [p (.createPanner context)]
+      (doseq [[k v] properties]
+        (oset! p [k] v)))))
 
 (defn oscillator
 "Returns an oscillator node"
@@ -198,13 +214,29 @@ value from 0-1 representing the position in the buffer being set"
       :oscillator osc
     }))
 
+(defn oscillator-3d
+  [context params]
+  (let [o (oscillator context)
+        p (panner context params)
+        g (gain context)]
+    (.connect o g)
+    (.connect g p)
+    (.connect p (.-destination context))
+  {
+    :context context
+    :panner p
+    :gain g
+    :oscillator o
+  }))
+
 (defn set-value-at-time [param x t]
   (.setValueAtTime param x t))
 
 (defn exp-to [param x t]
   (.exponentialRampToValueAtTime param x t))
 
-(defn linear-to [param x t] (.linearRampToValueAtTime param x t))
+(defn linear-to [param x t]
+  (.linearRampToValueAtTime param x t))
 
 (defn values-over-time
   ([{coll :coll context :context param :param duration :duration}]
@@ -218,6 +250,29 @@ value from 0-1 representing the position in the buffer being set"
       (linear-to param x2 t2))
          (partition 2 1 coll) (partition 2 1 timings))))
 
+(defn coll-chan [coll]
+  (let [c (chan)]
+    (go-loop [[f & r] (cycle coll)]
+      (as/>! c f)
+      (recur r))))
+
+(defn fvt...
+  ([]
+    (fvt... (coll-chan coll) (current-time context) duration param))
+  ([{coll :coll context :context rate :rate :as params :or {context (context)}}]
+    (let [ch-in (coll-chan coll)
+          ch-control (chan)
+          t (current-time context)
+          {o :oscillator p :panner g :gain} (oscillator-3d context params)
+          p {:f (.-frequency o) :v (.-gain g)}
+         ]
+     (go-loop [t (current-time context) rate (or rate 1)]
+       (let [m (<! ch-in) cm (<! ch-control)]
+         (doseq [k (keys m)]
+           (linear-to (p k) (m k) t))
+         (when (not= cm :stop)
+           (recur (+ t (* rate (:t m))) (or (:rate cm) rate))))))))
+
 (defn p<!G
 "make the given channel control the given parameter"
   [channel context param]
@@ -229,7 +284,7 @@ value from 0-1 representing the position in the buffer being set"
   ([params [times & values]]
     (map exp-to params values (map + times (repeat current-time))))
   ([fp gp context [f v t]]
-   ; (.log js/console f v t)
+   ; (println f v t)
     (set-value-at-time fp f (+ t (current-time context)))
     (set-value-at-time gp v (+ t (current-time context)))))
 
@@ -314,14 +369,16 @@ value from 0-1 representing the position in the buffer being set"
       (t/relative-to-absolute start duration (map last coll))))
   ([coll start duration osc gain context timings]
     (connect! osc gain)
-    (connect! gain (.-destination context))
     (doall (values-over-time (map first coll) start duration  (.-frequency osc) timings))
     (doall (values-over-time (map second coll) start duration (.-gain gain) timings))
+   (let [p (panner context)]
+    (connect! gain p)
+    (connect! p (.-destination context))
     {
-      :duration duration
-      :context context
-      :sounds [{:gain gain :oscillator osc}]
-    }))
+     :duration duration
+     :context context
+     :sounds [{:gain gain :oscillator osc :panner p :collection coll}]
+     })))
 
 (defn osc+
 "combine a oscillations! map with an oscillator for the given channel"
@@ -357,13 +414,14 @@ value from 0-1 representing the position in the buffer being set"
     (oscillator context (create-wavetable context (to-float32array coll)))
     (gain context)))
   ([context coll osc gain]
-    (connect! osc gain)
-    ;(frequency! osc (+ 400 (rand-int 200)))
-    (connect! gain (.-destination context))
-    {
-      :context context
-      :sounds [{:gain gain :oscillator osc}]
-    })
+    (let [p (panner context)]
+      (connect! osc gain)
+      (connect! gain p)
+      (connect! p (.-destination context))
+      {
+        :context context
+        :sounds [{:gain gain :oscillator osc :panner p :collection coll}]
+      }))
   ([colls]
     (reduce
       (fn [r coll]
@@ -400,7 +458,7 @@ value from 0-1 representing the position in the buffer being set"
 (defn mouse-position-channel!
   ([] (mouse-position-channel! (mouse-events-channel!)))
   ([channel w h]
-    (map<
+    (map
       (fn [e]
         {:x (/ (.-x e) w) :y (/ (.-y e) h) :shift (.-shiftKey e)}
        ) channel))
@@ -410,7 +468,7 @@ value from 0-1 representing the position in the buffer being set"
 
 (defn device-motion-channel!
   ([]
-    (map<
+    (map
         (fn [e]
           {
             :ax (.-x (.-acceleration e))
@@ -433,13 +491,13 @@ value from 0-1 representing the position in the buffer being set"
   ([coll] (o coll rest (chan (sliding-buffer 16))))
   ([coll f channel]
     (G (fn [col]
-     ; (.log js/console (str (first col)) (str (empty? coll)))
+     ; (println (str (first col)) (str (empty? coll)))
        (put! channel (first col))) f coll 600)
     channel))
 
 (defn oo
   ([playing]
-    (.log js/console "play:" (str playing))
+    (println "play:" (str playing))
     (oo
       playing
       (:context playing)
@@ -447,12 +505,12 @@ value from 0-1 representing the position in the buffer being set"
       (map :oscillator (vals (:sounds playing)))
       (map :gain (vals (:sounds playing)))))
   ([playing context colls oscs gains]
-    (.log js/console "starting...")
+    (println "starting...")
     (G (fn [colls]
         (doall
           (map
             (fn [coll osc gain]
-              (.log js/console coll osc gain)
+              (println coll osc gain)
               (fvt (.-frequency osc) (.-gain gain) context (first coll)))
               colls oscs gains))) (partial map rest) colls 500)
     playing))
@@ -471,10 +529,10 @@ value from 0-1 representing the position in the buffer being set"
 (defn chorus
   "Control the frequencies of a bunch of oscillators from the values of the given collections"
   ([colls]
-  (.log js/console "making " (count colls))
+  (println "making " (count colls))
     (reduce
       (fn [r coll]
-      (.log js/console " make one" )
+      (println " make one" )
         (update-in r [:sounds] (partial merge (:sounds (coll-osc coll (:context r))))))
     {:context (context) :duration :forever}
     colls)))
@@ -516,16 +574,3 @@ value from 0-1 representing the position in the buffer being set"
     (go
       (while true
         (f (<! channel))))))
-
-(defn ws<!
-"returns a channel reading from a websocket"
-  ([url] (ws<! (js/WebSocket. url) url (chan (dropping-buffer 16))))
-  ([ws url channel]
-    (set! (.-onmessage ws)
-      (fn [message]
-        ;(.log js/console (js->clj (.-data message) :keywordize-keys true))
-        (put! channel (js->clj (.parse js/JSON (.-data message)) :keywordize-keys true))
-        ))
-    (set! (.-onopen ws) (fn [] (.send ws {:hello :hi})))
-    (set! (.-onclose ws) (fn [] (close! channel)))
-    channel))

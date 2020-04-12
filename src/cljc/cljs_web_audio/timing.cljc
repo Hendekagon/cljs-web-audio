@@ -1,7 +1,5 @@
 (ns cljs-web-audio.timing)
 
-; this will be where the timing functions will go
-
 (defn relative-to-absolute
   ([start duration timings] (relative-to-absolute start duration (/ duration (reduce + timings)) timings))
   ([start duration total-1 timings]
